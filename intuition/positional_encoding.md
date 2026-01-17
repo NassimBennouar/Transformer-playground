@@ -10,7 +10,7 @@ Dans l’architecture originale du Transformer, l’information de position est 
 
 Par la suite, de nombreuses extensions ont été proposées pour dépasser les limites de cette approche, notamment des encodages positionnels relatifs comme RoPE, qui modifient directement le calcul de l’attention.
 
-Nous n'allons cependant pas en parler en cela que l'on étudie l'architecture initiale, et que la méthode employée par les chercheurs permet de comprendre le problème de façon assez simple.
+Nous n'allons cependant pas en parler en cela qu'on étudie l'architecture initiale, et que la méthode employée par les chercheurs permet de comprendre le problème de façon assez simple.
 
 Intuitivement, on peut avoir des idées sur comment développer ces encodages positionnels :
 
@@ -29,15 +29,15 @@ Il nous faut donc une solution qui respecte ces différentes caractéristiques :
 - Elle doit permettre au modèle de généraliser à des longueurs plus grandes sans effort
 - Elle doit être déterministe (afin que le modèle apprenne des modèles stables et qu'à l'inférence une même séquence en entrée soit la même)
 
-Il se trouve que la solution proposée par les chercheurs respecte ces caractéristiques, mais avant de le prouver décrivons le.
+Il se trouve que la solution proposée par les chercheurs respecte ces caractéristiques, décrivons la.
 
-Les séquences passées sont d'abord embeddées, donnant une matrice pour chaque séquence de $(seq\_len, d)$ avec $d$ la dimension de l'embedding et $seq\_len$ le nombre de tokens.
+Les séquences passées sont d'abord embeddées, donnant une matrice pour chaque séquence de $(\mathrm{seq\_len}, d)$ avec $d$ la dimension de l'embedding et $\mathrm{seq\_len}$ le nombre de tokens.
 
 L'information de positionnement est simplement ajoutée à la valeur de l'embedding selon la formule suivante
 
-Soit $t$ la position désirée dans une séquence d'entrée $\vec{p}_t \in \mathbb{R}^{d} $ son encodage et $d$ la dimension d'encodage.
+Soit $t$ la position dans la séquence, $\vec{p}_t \in \mathbb{R}^{d}$ son encodage positionnel (qui sera additionné à l'embedding), et $d$ la dimension de l'embedding
 
-On a alors $f:\mathbb{N}\longrightarrow \mathbb{R}^{d}$ la fonction qui produit le vecteur d'output $\vec{p}_t$ et qui est définie comme suit :
+On a $f:\mathbb{N}\longrightarrow \mathbb{R}^{d}$ la fonction qui produit le vecteur $\vec{p}_t$ :
 
 $$
 \vec{p}_t^{(i)} = f(t)(i) :=
@@ -51,13 +51,11 @@ où l'angle $\omega_k$ est
 
 $$\omega_k = \frac{1}{10000^{2k/d}}$$
 
-duquel on déduit la fréquence $\lambda_k$
+duquel on déduit la période $\lambda_k$
 
 $$\lambda_k=2\pi \cdot 10000^{2k/d}$$
 
-Comme on peut en déduire de la définition de la fonction, les fréquences décroissent le long de la dimension du vecteur ($k$ allant de $0$ à $d/2$). Elles forment ainsi une progression géométrique des longueurs d'ondes allant de $2\pi$ à $2\pi \cdot 10000$
-
-On peut plus facilement se représenter le positional embedding $\vec{p}_t$ comme un vecteur contenant des paires de sinus et cosinus pour chaque fréquence
+On observe qu'on a $d/2$ pairs cosinus/sinus, et que la fréquence diminue le long de la dimension du vecteur ($k$ allant de $0$ à $d/2$). La période va de $2\pi$ pour la première dimension à $2\pi \cdot 10000$ pour la dernière.
 
 $$\vec{p}_t = \begin{bmatrix}
 \sin(\omega_1 \cdot t) \\
@@ -72,7 +70,7 @@ $$\vec{p}_t = \begin{bmatrix}
 \cos(\omega_{d/2} \cdot t)
 \end{bmatrix} \in \mathbb{R}^{d\times1}$$
 
-Bref, si les esprits les plus mathématiques comprendront comment ces couples de sinus et cosinus peuvent représenter un ordre pour le modèle, les simples informaticiens desquels je fais partie on besoin d'un peu plus d'explication.
+Bref, si les esprits les plus mathématiques ont déjà compris pourquoi ça marche, les simples informaticiens desquels je fais partie on besoin d'un peu plus d'explication.
 
 Je vais donc prendre un exemple qui nous parle, représentons des nombres au format binaire
 
@@ -119,7 +117,7 @@ On observe différents taux de changement entre les bits. Le LSB change à chaqu
 
 Dans notre exemple, si on passe de la position 0 (0000) à la position 8 (1000), le LSB aura changé de valeur 8 fois, contre une seule fois pour le MSB.
 
-C'est, en version continue, ce qu'il se passe avec le positional encoder : avec la fréquence maximale, tel que $\omega_0 = 1$, il faut environ 6 à 7 positions pour compléter un cycle de $2\pi$ radians (un "tour de cercle" complet du point $(\sin(\omega_0 t), \cos(\omega_0 t))$). Cette dimension oscille donc rapidement, capturant des patterns locaux, à l'image du LSB qui change fréquemment.
+C'est, en version discrète, ce qu'il se passe avec le positional encoder : la première paire cosinus/sinus a la fréquence maximale possible, $\omega_0 = 1$, il faut alors environ 6 à 7 positions pour compléter un cycle de $2\pi$ radians (un "tour de cercle" complet du point $(\sin(\omega_0 t), \cos(\omega_0 t))$). Cette dimension oscille donc rapidement, capturant des patterns locaux, à l'image du LSB qui change fréquemment.
 
 À l'inverse, pour les fréquences minimales où $\omega_k \approx 1/10000$ (quand $k$ est proche de $d/2$), il faut environ $2\pi \times 10000 \approx 62832$ positions pour compléter un cycle. Ces dimensions oscillent très lentement, capturant des patterns globaux sur de longues distances, à l'image du MSB qui ne change que rarement.
 
@@ -135,7 +133,7 @@ Mais si nous voulons valider les deux derniers points qui sont :
 
 - que la distance entre deux positions est consistante peu importe la longueur de la séquence
 
-Alors nous devons aller un peu plus loin et prouver qu'on a, comme décrit dans le papier, pour tout offset fixe $\phi$, $\vec{p}_{t+\phi}$ qiu peut être représenté comme une fonction linéaire de $\vec{p}_{t}$.
+Alors nous devons aller un peu plus loin et prouver qu'on a, comme décrit dans le papier, pour tout offset fixe $\phi$, $\vec{p}_{t+\phi}$ qui peut être représenté comme une fonction linéaire de $\vec{p}_{t}$.
 
 Ca va être très rapide
 
@@ -158,7 +156,7 @@ $$M = \begin{bmatrix}
 \ m & n\ \\ \ o & p\ 
 \end{bmatrix}$$
 
-Et sachant que
+Sachant que
 
 $$
 cos\ (a+b) = cos\ a \cdot cos\ b \ -\ sin\ a \cdot sin\ b \\
@@ -200,4 +198,4 @@ Pour résumer, ce que vous devez retenir pour construire votre intuition sur cet
 
 2. De nombreuses fréquences sont fournies, ce qui permet de capturer des patterns plus ou moins locaux (imaginez une horloge qui a une trotteuse, une aiguille pour les minutes et une autre pour les heures)
 
-Je vous recommande aussi d'implémenter cette brique avec PyTorch sans autocomplete et sans recopier (dans la mesure du possible), à partir du papier.
+Je vous recommande d'implémenter cette brique avec PyTorch sans autocomplete et sans recopier (dans la mesure de votre connaissance de PyTorch), à partir de ce que vous avez compris.

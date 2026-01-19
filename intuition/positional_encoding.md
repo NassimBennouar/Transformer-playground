@@ -31,7 +31,7 @@ Il nous faut donc une solution qui respecte ces différentes caractéristiques :
 
 Il se trouve que la solution proposée par les chercheurs respecte ces caractéristiques, décrivons la.
 
-Les séquences passées sont d'abord embeddées, donnant une matrice pour chaque séquence de $(\mathrm{seq\_len}, d)$ avec $d$ la dimension de l'embedding et $\mathrm{seq\_len}$ le nombre de tokens.
+Les séquences passées sont d'abord embeddées, donnant une matrice pour chaque séquence de $(seq len, d)$ avec $d$ la dimension de l'embedding et $seq len$ le nombre de tokens.
 
 L'information de positionnement est simplement ajoutée à la valeur de l'embedding selon la formule suivante
 
@@ -39,13 +39,11 @@ Soit $t$ la position dans la séquence, $\vec{p}_t \in \mathbb{R}^{d}$ son encod
 
 On a $f:\mathbb{N}\longrightarrow \mathbb{R}^{d}$ la fonction qui produit le vecteur $\vec{p}_t$ :
 
-$$
-\vec{p}_t^{(i)} = f(t)(i) :=
+$$\vec{p}_t^{(i)} = f(t)(i) :=
 \begin{cases}
 \sin(\omega_k t), & \text{si } i = 2k \\
 \cos(\omega_k t), & \text{si } i = 2k + 1
-\end{cases}
-$$
+\end{cases}$$
 
 où l'angle $\omega_k$ est
 
@@ -117,7 +115,7 @@ On observe différents taux de changement entre les bits. Le LSB change à chaqu
 
 Dans notre exemple, si on passe de la position 0 (0000) à la position 8 (1000), le LSB aura changé de valeur 8 fois, contre une seule fois pour le MSB.
 
-C'est, en version discrète, ce qu'il se passe avec le positional encoder : la première paire cosinus/sinus a la fréquence maximale possible, $\omega_0 = 1$, il faut alors environ 6 à 7 positions pour compléter un cycle de $2\pi$ radians (un "tour de cercle" complet du point $(\sin(\omega_0 t), \cos(\omega_0 t))$). Cette dimension oscille donc rapidement, capturant des patterns locaux, à l'image du LSB qui change fréquemment.
+C'est, en version discrète, ce qu'il se passe avec le positional encoder : la première paire cosinus/sinus a la fréquence maximale possible, $\omega_0 = 1$, il faut alors environ 6 à 7 positions pour compléter un cycle de $2\pi$ radians (un "tour de cercle" complet du point $(\sin(\omega_0 t), \cos(\omega_0 t))$ ). Cette dimension oscille donc rapidement, capturant des patterns locaux, à l'image du LSB qui change fréquemment.
 
 À l'inverse, pour les fréquences minimales où $\omega_k \approx 1/10000$ (quand $k$ est proche de $d/2$), il faut environ $2\pi \times 10000 \approx 62832$ positions pour compléter un cycle. Ces dimensions oscillent très lentement, capturant des patterns globaux sur de longues distances, à l'image du MSB qui ne change que rarement.
 
@@ -133,7 +131,7 @@ Mais si nous voulons valider les deux derniers points qui sont :
 
 - que la distance entre deux positions est consistante peu importe la longueur de la séquence
 
-Alors nous devons aller un peu plus loin et prouver qu'on a, comme décrit dans le papier, pour tout offset fixe $\phi$, $\vec{p}_{t+\phi}$ qui peut être représenté comme une fonction linéaire de $\vec{p}_{t}$.
+Alors nous devons aller un peu plus loin et prouver qu'on a, comme décrit dans le papier, pour tout offset fixe $\phi$ , $\vec{p}\_{t+\phi}$ qui peut être représenté comme une fonction linéaire de $\vec{p}_{t}$.
 
 Ca va être très rapide
 
@@ -143,8 +141,7 @@ $$M \cdot
 \begin{bmatrix}
 \sin(\omega_k \cdot t) \\
 \cos(\omega_k \cdot t)
-\end{bmatrix}
-=
+\end{bmatrix} =
 \begin{bmatrix}
 \sin(\omega_k \cdot (t+\phi)) \\
 \cos(\omega_k \cdot (t+\phi))
@@ -152,43 +149,34 @@ $$M \cdot
 
 Disons
 
-$$M = \begin{bmatrix}
-\ m & n\ \\ \ o & p\ 
-\end{bmatrix}$$
+$$
+M = \begin{bmatrix}
+m & n \\
+o & p
+\end{bmatrix}
+$$
 
 Sachant que
 
 $$
-cos\ (a+b) = cos\ a \cdot cos\ b \ -\ sin\ a \cdot sin\ b \\
-sin\ (a+b) = sin\ a \cdot cos\ b +\ cos\ a \cdot sin\ b
+\begin{aligned}
+\cos(a+b) &= \cos a \cdot \cos b - \sin a \cdot \sin b \\
+\sin(a+b) &= \sin a \cdot \cos b + \cos a \cdot \sin b
+\end{aligned}
 $$
 
 Alors
 
-$$
-\begin{bmatrix}
-\ m \ n \ \\ \ o \ p \
-\end{bmatrix}
-\cdot
-\begin{bmatrix}
-\sin(\omega_k \cdot t) \\
-\cos(\omega_k \cdot t)
-\end{bmatrix}
-=
-\begin{bmatrix}
-sin(\omega_k \cdot t) \cdot cos(\omega_k \cdot \phi) +\ cos(\omega_k \cdot t) \cdot sin(\omega_k \cdot \phi) \sin(\omega_k \cdot (t+\phi)) \\
-cos(\omega_k \cdot t) \cdot cos(\omega_k \cdot \phi) \ -\ sin(\omega_k \cdot t) \cdot sin(\omega_k \cdot \phi)
-\end{bmatrix}
-$$
+$$\begin{bmatrix} m & n \\
+o & p \end{bmatrix} \cdot \begin{bmatrix} \sin(\omega_k \cdot t) \\
+\cos(\omega_k \cdot t) \end{bmatrix} = \begin{bmatrix} sin(\omega_k \cdot t) \cdot cos(\omega_k \cdot \phi) +\ cos(\omega_k \cdot t) \cdot sin(\omega_k \cdot \phi) \\
+cos(\omega_k \cdot t) \cdot cos(\omega_k \cdot \phi) \ -\ sin(\omega_k \cdot t) \cdot sin(\omega_k \cdot \phi) \end{bmatrix}$$
+
 
 On déduit
-$$
-M =
-\begin{bmatrix}
-    \cos(\omega_k \phi) & \sin(\omega_k \phi) \\
-    -\sin(\omega_k \phi) & \cos(\omega_k \phi)
-\end{bmatrix}
-$$
+
+$$M = \begin{bmatrix}\cos(\omega_k \phi) & \sin(\omega_k \phi) \\
+-\sin(\omega_k \phi) & \cos(\omega_k \phi) \end{bmatrix}$$
 
 Et voilà !
 

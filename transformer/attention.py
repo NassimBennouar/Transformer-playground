@@ -14,9 +14,11 @@ class MultiHeadAttention(nn.Module):
         self.linear_v = nn.Linear(d_model, d_model)
         self.linear_mix = nn.Linear(d_model, d_model)
 
-    def forward(self, query, key_value=None):
+    def forward(self, query, key_value=None, padding_mask=None, causal_mask=None):
         # query.shape (batch_size, q_len, d_model)
         # key_value.shape (batch_size, kv_len, d_model)
+        # padding_mask.shape (batch_size, kv_len)
+        # causal_mask.shape (q_len, kv_len)
         # self-attention: key_value is None -> defaults to query (encoder, decoder masked self-attn)
         # cross-attention: key_value = encoder output, query = decoder hidden state
         if key_value is None:
@@ -42,6 +44,17 @@ class MultiHeadAttention(nn.Module):
 
         scores = Q @ K.transpose(-2,-1) # (batch_size, h, q_len, kv_len)
         scores = scores / math.sqrt(self.d_k)
+        # Le padding mask sert à mettre à 0 les interactions entre les tokens de Q et les pads de K après le softmax.
+        # On n'a pas à masquer Q so far parce que de toutes façons dans la matrice finale y a pas d'interaction, la ligne du token dans Q c'est la ligne du token dans la matrice d'attention quoi.
+
+        if padding_mask is not None:
+            padding_mask = padding_mask.unsqueeze(1).unsqueeze(2) # (batch_size, 1, 1, kv_len)
+            scores = scores.masked_fill(padding_mask == 0, -math.inf)
+
+        if causal_mask is not None:
+            causal_mask = causal_mask.unsqueeze(0).unsqueeze(0) # inutile en pratique, le broadcasting aligne depuis la droite.
+            scores = scores.masked_fill(causal_mask == 0, -math.inf)
+        
         scores = torch.softmax(scores, dim=-1)
         # pour chaque tête: distribution de probabilité d'attention entre positions
 

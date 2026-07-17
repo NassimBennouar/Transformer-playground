@@ -1,5 +1,5 @@
 import torch.nn as nn
-from positional_encoding import PositionalEncoding
+from transformer.positional_encoding import PositionalEncoding
 
 class InputEmbedding(nn.Module):
     def __init__(self, vocab_size, max_seq_len, d_model):

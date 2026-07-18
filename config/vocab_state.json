@@ -1,0 +1,16 @@
+{
+  "control_verbs": [
+    "SET",
+    "GET"
+  ],
+  "num_variables": 5,
+  "value_range": [
+    0,
+    9
+  ],
+  "delimiter": ",",
+  "specials": [
+    "<pad>"
+  ],
+  "has_delimiter": true
+}

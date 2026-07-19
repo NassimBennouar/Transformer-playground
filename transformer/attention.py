@@ -14,6 +14,9 @@ class MultiHeadAttention(nn.Module):
         self.linear_v = nn.Linear(d_model, d_model)
         self.linear_mix = nn.Linear(d_model, d_model)
 
+        self.store_scores = False
+        self.last_scores = None
+
     def forward(self, query, key_value=None, padding_mask=None, causal_mask=None):
         # query.shape (batch_size, q_len, d_model)
         # key_value.shape (batch_size, kv_len, d_model)
@@ -57,6 +60,9 @@ class MultiHeadAttention(nn.Module):
         
         scores = torch.softmax(scores, dim=-1)
         # pour chaque tête: distribution de probabilité d'attention entre positions
+
+        if self.store_scores:
+            self.last_scores = scores.detach() # detach : jamais besoin du graphe pour de l'observabilité
 
         output = scores @ V # (batch_size, h, q_len, d_k)
         # pour chaque tête h: output[h, i] = somme pondérée des V[h, j] avec poids scores[h, i, j]
